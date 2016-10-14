@@ -15,6 +15,8 @@ from theblues.errors import (
 )
 
 
+API_URL = 'https://api.jujucharms.com/'
+API_VERSION = 5
 DEFAULT_TIMEOUT = 3.05
 _error_message = 'Error during request: {url} message: {message}'
 

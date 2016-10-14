@@ -17,22 +17,23 @@ from theblues.charmstore import (
     EntityNotFound,
     ServerError,
     )
+from theblues.utils import API_URL, API_VERSION
 
 
 SAMPLE_CHARM = 'precise/mysql-1'
 SAMPLE_BUNDLE = 'mongodb-cluster'
 SAMPLE_FILE = 'README.md'
-CONFIG_PATH = '/%s/meta/charm-config' % SAMPLE_CHARM
-MANIFEST_PATH = '/%s/meta/manifest' % SAMPLE_CHARM
-FILE_PATH = '/%s/archive/%s' % (SAMPLE_CHARM, SAMPLE_FILE)
+CONFIG_PATH = '/v5/%s/meta/charm-config' % SAMPLE_CHARM
+MANIFEST_PATH = '/v5/%s/meta/manifest' % SAMPLE_CHARM
+FILE_PATH = '/v5/%s/archive/%s' % (SAMPLE_CHARM, SAMPLE_FILE)
 ID_PATH = '.*/meta/any'
-README_PATH = '/%s/readme' % SAMPLE_CHARM
-SEARCH_PATH = '^/search.*'
-LIST_PATH = '^/list.*'
-DEBUG_PATH = '/debug/status'
-MACAROON_PATH = '/macaroon'
-ICON_PATH = '/%s/icon.svg' % SAMPLE_CHARM
-DIAGRAM_PATH = '/%s/diagram.svg' % SAMPLE_BUNDLE
+README_PATH = '/v5/%s/readme' % SAMPLE_CHARM
+SEARCH_PATH = '^/v5/search.*'
+LIST_PATH = '^/v5/list.*'
+DEBUG_PATH = '/v5/debug/status'
+MACAROON_PATH = '/v5/macaroon'
+ICON_PATH = '/v5/%s/icon.svg' % SAMPLE_CHARM
+DIAGRAM_PATH = '/v5/%s/diagram.svg' % SAMPLE_BUNDLE
 
 
 @urlmatch(path=ID_PATH)
@@ -355,17 +356,19 @@ class TestCharmStore(TestCase):
 
     def entities_response(self, url, request):
         self.assertEqual(
-            url.geturl(), 'http://example.com/meta/' +
+            url.geturl(), 'http://example.com/v5/meta/' +
             'any?include=id&id=wordpress&id=mysql')
         return {
             'status_code': 200,
             'content': b'{"wordpress":"wordpress","mysql":"mysql"}'}
 
     def setUp(self):
-        self.cs = CharmStore('http://example.com')
+        self.cs = CharmStore('http://example.com/v5')
 
     def test_init(self):
-        self.assertEqual(self.cs.url, 'http://example.com')
+        self.assertEqual(self.cs.url, 'http://example.com/v5')
+        self.assertEqual(CharmStore().url,
+                         '{}v{}'.format(API_URL, API_VERSION))
 
     def test_entity(self):
         with HTTMock(entity_200):
@@ -397,7 +400,7 @@ class TestCharmStore(TestCase):
             with self.assertRaises(EntityNotFound) as cm:
                 self.cs.entities(['not-found'])
             self.assertEqual(
-                'http://example.com/meta/any?include=id&id=not-found',
+                'http://example.com/v5/meta/any?include=id&id=not-found',
                 cm.exception.args[0]
             )
 
@@ -430,22 +433,24 @@ class TestCharmStore(TestCase):
     def test_archive_url(self):
         with HTTMock(manifest_200):
             data = self.cs.archive_url(SAMPLE_CHARM)
-        self.assertEqual(u'http://example.com/precise/mysql-1/archive', data)
+        self.assertEqual(u'http://example.com/v5/precise/mysql-1/archive',
+                         data)
 
     def test_archive_url_reference(self):
         with HTTMock(manifest_200):
             data = self.cs.archive_url(
                 references.Reference.from_string(SAMPLE_CHARM))
-        self.assertEqual(u'http://example.com/precise/mysql-1/archive', data)
+        self.assertEqual(u'http://example.com/v5/precise/mysql-1/archive',
+                         data)
 
     def test_file_good(self):
         with HTTMock(manifest_200):
             data = self.cs.files(SAMPLE_CHARM)
         self.assertEqual({
             u'icon.svg':
-            u'http://example.com/precise/mysql-1/archive/icon.svg',
+            u'http://example.com/v5/precise/mysql-1/archive/icon.svg',
             u'README.md':
-            u'http://example.com/precise/mysql-1/archive/README.md'
+            u'http://example.com/v5/precise/mysql-1/archive/README.md'
             },
             data)
 
@@ -455,9 +460,9 @@ class TestCharmStore(TestCase):
                 references.Reference.from_string(SAMPLE_CHARM))
         self.assertEqual({
             u'icon.svg':
-            u'http://example.com/precise/mysql-1/archive/icon.svg',
+            u'http://example.com/v5/precise/mysql-1/archive/icon.svg',
             u'README.md':
-            u'http://example.com/precise/mysql-1/archive/README.md'
+            u'http://example.com/v5/precise/mysql-1/archive/README.md'
             },
             data)
 
@@ -470,7 +475,7 @@ class TestCharmStore(TestCase):
         with HTTMock(manifest_200):
             data = self.cs.files(SAMPLE_CHARM, filename='README.md')
         self.assertEqual(
-            u'http://example.com/precise/mysql-1/archive/README.md',
+            u'http://example.com/v5/precise/mysql-1/archive/README.md',
             data)
 
     def test_file_one_file_reference(self):
@@ -479,7 +484,7 @@ class TestCharmStore(TestCase):
                 references.Reference.from_string(SAMPLE_CHARM),
                 filename='README.md')
         self.assertEqual(
-            u'http://example.com/precise/mysql-1/archive/README.md',
+            u'http://example.com/v5/precise/mysql-1/archive/README.md',
             data)
 
     def test_file_one_file_error(self):
@@ -548,7 +553,7 @@ class TestCharmStore(TestCase):
                     self.cs.search('foo')
         self.assertEqual(400, cm.exception.args[0])
         log_mocked.assert_called_with(
-            'Error during request: http://example.com/search?text=foo '
+            'Error during request: http://example.com/v5/search?text=foo '
             'status code:(400) message: '
             '{"Message": "invalid parameter: user", "Code": "bad request"}')
 
@@ -559,7 +564,7 @@ class TestCharmStore(TestCase):
                     self.cs.list()
         self.assertEqual(400, cm.exception.args[0])
         log_mocked.assert_called_with(
-            'Error during request: http://example.com/list '
+            'Error during request: http://example.com/v5/list '
             'status code:(400) message: '
             '{"Message": "invalid parameter: user", "Code": "bad request"}')
 
@@ -633,13 +638,13 @@ class TestCharmStore(TestCase):
     def test_charm_icon_url(self):
         entity_id = 'mongodb'
         url = self.cs.charm_icon_url(entity_id)
-        self.assertEqual('http://example.com/mongodb/icon.svg', url)
+        self.assertEqual('http://example.com/v5/mongodb/icon.svg', url)
 
     def test_charm_icon_url_reference(self):
         entity_id = 'mongodb'
         url = self.cs.charm_icon_url(
             references.Reference.from_string(entity_id))
-        self.assertEqual('http://example.com/mongodb/icon.svg', url)
+        self.assertEqual('http://example.com/v5/mongodb/icon.svg', url)
 
     def test_charm_icon_ok(self):
         entity_id = 'precise/mysql-1'
@@ -663,13 +668,15 @@ class TestCharmStore(TestCase):
     def test_bundle_visualization_url(self):
         entity_id = 'mongodb-cluster'
         url = self.cs.bundle_visualization_url(entity_id)
-        self.assertEqual('http://example.com/mongodb-cluster/diagram.svg', url)
+        self.assertEqual('http://example.com/v5/mongodb-cluster/diagram.svg',
+                         url)
 
     def test_bundle_visualization_url_reference(self):
         entity_id = 'mongodb-cluster'
         url = self.cs.bundle_visualization_url(
             references.Reference.from_string(entity_id))
-        self.assertEqual('http://example.com/mongodb-cluster/diagram.svg', url)
+        self.assertEqual('http://example.com/v5/mongodb-cluster/diagram.svg',
+                         url)
 
     def test_bundle_visualization_ok(self):
         entity_id = 'mongodb-cluster'
@@ -693,13 +700,13 @@ class TestCharmStore(TestCase):
     def test_entity_readme_url(self):
         entity_id = 'mongodb-cluster'
         url = self.cs.entity_readme_url(entity_id)
-        self.assertEqual('http://example.com/mongodb-cluster/readme', url)
+        self.assertEqual('http://example.com/v5/mongodb-cluster/readme', url)
 
     def test_entity_readme_url_reference(self):
         entity_id = 'mongodb-cluster'
         url = self.cs.entity_readme_url(
             references.Reference.from_string(entity_id))
-        self.assertEqual('http://example.com/mongodb-cluster/readme', url)
+        self.assertEqual('http://example.com/v5/mongodb-cluster/readme', url)
 
     def test_readme_not_found(self):
         # A 404 not found error is returned when the readme cannot be found.
@@ -732,7 +739,8 @@ class TestCharmStore(TestCase):
         with HTTMock(fetch_macaroon_404):
             with self.assertRaises(EntityNotFound) as cm:
                 self.cs.fetch_macaroon()
-        self.assertEqual(cm.exception.args, ('http://example.com/macaroon',))
+        self.assertEqual(cm.exception.args,
+                         ('http://example.com/v5/macaroon',))
 
     def test_search_with_macaroon(self):
         with HTTMock(search_200_with_macaroon):
@@ -756,5 +764,6 @@ class TestCharmStore(TestCase):
     def test_resource_url(self):
         entity_id = 'mongodb'
         url = self.cs.resource_url(entity_id, "myresource", "22")
-        self.assertEqual('http://example.com/mongodb/resource/myresource/22',
-                         url)
+        self.assertEqual(
+            'http://example.com/v5/mongodb/resource/myresource/22',
+            url)
