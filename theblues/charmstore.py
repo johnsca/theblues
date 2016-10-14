@@ -1,8 +1,10 @@
+import re
 import logging
 try:
     from urllib import urlencode
+    from urlparse import urljoin
 except:
-    from urllib.parse import urlencode
+    from urllib.parse import urlencode, urljoin
 
 import requests
 from requests.exceptions import (
@@ -15,17 +17,18 @@ from .errors import (
     EntityNotFound,
     ServerError,
     )
-from theblues.utils import DEFAULT_TIMEOUT
+from theblues.utils import DEFAULT_TIMEOUT, API_URL, API_VERSION
 
 
 class CharmStore(object):
     """A connection to the charmstore."""
 
-    def __init__(self, url, macaroons=None, timeout=DEFAULT_TIMEOUT,
-                 verify=True):
+    def __init__(self, url=API_URL, macaroons=None,
+                 timeout=DEFAULT_TIMEOUT, verify=True):
         """Initializer.
 
-        @param url The url to the charmstore API.
+        @param url The base url to the charmstore API.  Defaults
+            to `https://api.jujucharms.com/`.
         @param macaroons The optional discharged macaroon allowing access to
             authenticated queries against the charmstore.
         @param timeout How long to wait in seconds before timing out a request;
@@ -34,6 +37,9 @@ class CharmStore(object):
             host.
         """
         super(CharmStore, self).__init__()
+        if not re.search(r'/v\d+/?$', url):
+            url = urljoin(url, 'v{}'.format(API_VERSION))
+        url = url.rstrip('/')
         self.url = url
         self.verify = verify
         self.timeout = timeout
